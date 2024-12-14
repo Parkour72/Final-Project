@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Game</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        @font-face {
+            font-family: 'PressStart2P';
+            src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: black;
+            color: white;
+            font-family: 'PressStart2P', sans-serif;
+        }
+
+        #title {
+            font-size: 48px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        canvas {
+            border: 2px solid white;
+        }
+
+        #scoreboard {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        #startButton {
+            font-size: 20px;
+            padding: 10px 20px;
+            background-color: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #startButton:hover {
+            background-color: lightgray;
+        }
+
+        #winMessage {
+            font-size: 36px;
+            text-align: center;
+            display: none;
+        }
+        /* Back to Home Button Styles */
+    
+        .back-to-home {
+        text-align: center;
+        margin: 20px 0;
+        }
+
+        .home-button {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        color: white !important;
+        background-color: black !important;
+        text-decoration: none !important;
+        border-radius: 5px;
+        border: 2px solid white;
+        font-family: 'PressStart2P', sans-serif;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .home-button:visited {
+        color: white !important;
+        background-color: black !important;
+        text-decoration: none !important;
+        }
+
+        .home-button:hover {
+        background-color: white;
+        color: black;
+        transform: scale(1.05);
+        }
+
+        home-button:active {
+        background-color: gray;
+        color: black;
+        }
+    </style>
+</head>
+<body>
+    <!-- Back to Home Button -->
+    <div class="back-to-home">
+        <a href="index.html" class="home-button">Back to Home</a>
+    </div>
+
+    <!-- Pong Game Content -->
+    <div id="title">PONG</div>
+    <div id="scoreboard">Player: 0 | Opponent: 0</div>
+    <canvas id="pongCanvas" width="800" height="400" style="display:none;"></canvas>
+    <div id="winMessage"></div>
+    <button id="startButton">Start Game</button>
+
+    <script>
+        const canvas = document.getElementById('pongCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const winMessage = document.getElementById('winMessage');
+        const scoreboard = document.getElementById('scoreboard');
+
+        // Game variables
+        const paddleWidth = 10;
+        const paddleHeight = 100;
+        const ballRadius = 10;
+
+        let paddlePlayerY = (canvas.height - paddleHeight) / 2;
+        let paddleComputerY = (canvas.height - paddleHeight) / 2;
+
+        let ballX = canvas.width / 2;
+        let ballY = canvas.height / 2;
+        let ballSpeedX = 4;
+        let ballSpeedY = 4;
+
+        let playerScore = 0;
+        let computerScore = 0;
+        let gameRunning = false;
+
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false
+        };
+
+        // Draw paddles, ball, and scoreboard
+        function drawRect(x, y, width, height, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+        }
+
+        function drawCircle(x, y, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawNet() {
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'white';
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+        }
+
+        function updateScoreboard() {
+            scoreboard.textContent = `Player: ${playerScore} | Opponent: ${computerScore}`;
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawNet();
+            drawRect(0, paddleComputerY, paddleWidth, paddleHeight, 'white');
+            drawRect(canvas.width - paddleWidth, paddlePlayerY, paddleWidth, paddleHeight, 'white');
+            drawCircle(ballX, ballY, ballRadius, 'white');
+        }
+
+        // Update game logic
+        function updateGame() {
+            // Ball movement
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // Ball collision with top and bottom
+            if (ballY - ballRadius < 0 || ballY + ballRadius > canvas.height) {
+                ballSpeedY = -ballSpeedY;
+            }
+
+            // Ball collision with paddles
+            if (ballX - ballRadius < paddleWidth && ballY > paddleComputerY && ballY < paddleComputerY + paddleHeight) {
+                ballSpeedX = -ballSpeedX;
+                ballSpeedY += (ballY - (paddleComputerY + paddleHeight / 2)) * 0.1;
+            }
+            if (ballX + ballRadius > canvas.width - paddleWidth && ballY > paddlePlayerY && ballY < paddlePlayerY + paddleHeight) {
+                ballSpeedX = -ballSpeedX;
+                ballSpeedY += (ballY - (paddlePlayerY + paddleHeight / 2)) * 0.1;
+            }
+
+            // Ball reset and scoring
+            if (ballX + ballRadius > canvas.width) {
+                computerScore++;
+                updateScoreboard();
+                checkWin();
+                resetBall(true);
+            }
+            if (ballX - ballRadius < 0) {
+                playerScore++;
+                updateScoreboard();
+                checkWin();
+                resetBall(false);
+            }
+
+            // Player paddle movement
+            if (keys.ArrowUp && paddlePlayerY > 0) paddlePlayerY -= 5;
+            if (keys.ArrowDown && paddlePlayerY < canvas.height - paddleHeight) paddlePlayerY += 5;
+
+            // Opponent AI movement
+            if (ballSpeedX < 0) { // Only move if the ball is heading toward the opponent
+                const target = ballY - paddleHeight / 2; // Aim for center
+                const adjustmentSpeed = 3;
+                if (Math.abs(paddleComputerY + paddleHeight / 2 - ballY) > 5) { // Add buffer for smooth centering
+                    if (paddleComputerY + paddleHeight / 2 < ballY) {
+                        paddleComputerY += adjustmentSpeed;
+                    } else if (paddleComputerY + paddleHeight / 2 > ballY) {
+                        paddleComputerY -= adjustmentSpeed;
+                    }
+                }
+            }
+        }
+
+        function resetBall(isComputerServe) {
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+            ballSpeedX = isComputerServe ? -4 : 4; // Serve direction
+
+            // Ensure the ball starts heading toward the center of the opponent paddle
+            const serveTargetY = isComputerServe ? paddleComputerY + paddleHeight / 2 : paddlePlayerY + paddleHeight / 2;
+            ballSpeedY = ((serveTargetY - ballY) / (canvas.width / 2)) * 4;
+        }
+
+        function checkWin() {
+            if (playerScore === 10) {
+                endGame('You Win!');
+            } else if (computerScore === 10) {
+                endGame('Computer Wins!');
+            }
+        }
+
+        function endGame(message) {
+            gameRunning = false;
+            canvas.style.display = 'none';
+            winMessage.textContent = message;
+            winMessage.style.display = 'block';
+            startButton.style.display = 'block';
+        }
+
+        function startGame() {
+            playerScore = 0;
+            computerScore = 0;
+            updateScoreboard();
+            winMessage.style.display = 'none';
+            startButton.style.display = 'none';
+            canvas.style.display = 'block';
+            gameRunning = true;
+            resetBall(false);
+            gameLoop();
+        }
+
+        startButton.addEventListener('click', startGame);
+
+        // Key event listeners
+        document.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) {
+                keys[e.key] = false;
+            }
+        });
+
+        // Game loop
+        function gameLoop() {
+            if (gameRunning) {
+                updateGame();
+                drawGame();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+    </script>
+</body>
+</html>
